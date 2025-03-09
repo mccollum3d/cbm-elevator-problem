@@ -7,8 +7,10 @@ public class Passenger {
     private boolean descending = false;
     private int currentFloor = 1;
     private int targetFloor = 0;
+    private int passengerIdentifier = 0;
 
-    public Passenger (int startingFloor, int targetFloor) {
+    public Passenger (int startingFloor, int targetFloor, int passengerIdentifier) {
+        setPassengerIdentifier(passengerIdentifier);
         setCurrentFloor(startingFloor);
         setTargetFloor(targetFloor);
         if (startingFloor > targetFloor) {
@@ -16,9 +18,7 @@ public class Passenger {
         } else if (startingFloor < targetFloor) {
             setAscending(true);
         } else {
-            //If the passenger is randomly assigned to the same floor they started on, they will be considered delivered
-            //until such time as I add error catching to ensure they can't start on the floor they want to go to.
-            setPassengerDelivered(true);
+            //Do nothing. Error handling for start=end handled in Simulation class.
         }
     }
 
@@ -60,5 +60,13 @@ public class Passenger {
 
     public void setTargetFloor(int targetFloor) {
         this.targetFloor = targetFloor;
+    }
+
+    public int getPassengerIdentifier() {
+        return passengerIdentifier;
+    }
+
+    public void setPassengerIdentifier(int passengerIdentifier) {
+        this.passengerIdentifier = passengerIdentifier;
     }
 }
