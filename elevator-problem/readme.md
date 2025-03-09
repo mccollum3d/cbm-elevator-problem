@@ -1,6 +1,5 @@
-# classes.Elevator Problem
-Christopher McCollum
-For Bluestaq
+# Elevator Problem
+Christopher McCollum, For Bluestaq
 
 ## Criteria:
 Write code to simulate an elevator in Java. 
@@ -9,10 +8,11 @@ Document assumptions and unimplemented features.
 Be creative.
 
 ## Goal:
-To write a sample simulation that can tell the user how many passengers
+To write an elevator controller to simulate an elevator. Next I will 
+write a sample simulation that can tell the user how many passengers
 the elevators can service given their capacity, number of elevators, and
 allowing the user to alter the parameters to find the optimal elevator
-rules for thier building.
+rules for their building.
 
 ## Assumptions:
 1. Empty elevators will start at the first floor during simulation.
@@ -25,6 +25,6 @@ rules for thier building.
    milliseconds how long a minute should be.
 
 ## Unimplemented features:
-1. Spring Boot/Maven to set up a local web server. I think I'd get lost in the weeds trying
-   to create a pretty website to show the elevators running in simulation, so I will stick
-   to ascii in the console to avoid over-engineering the solution to this assessment.
+1. Spring Boot/Maven to set up a local web server. I think building a front end to make it look
+   nice is not as important as writing a solid controller for the elevator, and simulator to show
+   that the elevator works properly.
