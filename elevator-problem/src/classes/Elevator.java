@@ -14,7 +14,6 @@ public class Elevator {
     private boolean descending;
     private boolean doorOpen;
     private boolean idle;
-    private int currentPassengers;
     private int currentFloor;
     private int targetFloor;
     private int passengersDelivered = 0;
@@ -33,7 +32,6 @@ public class Elevator {
         descending = false;
         doorOpen = false;
         idle = true;
-        currentPassengers = 0;
         currentFloor = 1;
     }
 
@@ -43,17 +41,9 @@ public class Elevator {
         descending = false;
         doorOpen = false;
         idle = true;
-        currentPassengers = 0;
         setCurrentFloor(currentFloor);
     }
 
-    public void updateElevator(boolean ascending, boolean descending, boolean doorOpen, int currentPassengers, int currentFloor) {
-        setAscending(ascending);
-        setDescending(descending);
-        setDoorOpen(doorOpen);
-        setCurrentPassengers(currentPassengers);
-        setCurrentFloor(currentFloor);
-    }
 
     public String getElevatorName() {
         return elevatorName;
@@ -93,14 +83,6 @@ public class Elevator {
 
     public void setIdle(boolean idle) {
         this.idle = idle;
-    }
-
-    public int getCurrentPassengers() {
-        return currentPassengers;
-    }
-
-    public void setCurrentPassengers(int currentPassengers) {
-        this.currentPassengers = currentPassengers;
     }
 
     public int getCurrentFloor() {
