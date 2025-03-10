@@ -16,6 +16,7 @@ public class Elevator {
     private int floorsTraveled = 0;
     private ArrayList<Passenger> ridingElevator = new ArrayList<>();
     private direction elevatorDirection = direction.IDLE;
+    private boolean isDoorOpen = false;
 
     public enum direction {
         UP,
@@ -109,5 +110,13 @@ public class Elevator {
 
     public void setFloorsPerMinute(int floorsPerMinute) {
         this.floorsPerMinute = floorsPerMinute;
+    }
+
+    public boolean isDoorOpen() {
+        return isDoorOpen;
+    }
+
+    public void setDoorOpen(boolean doorOpen) {
+        this.isDoorOpen = doorOpen;
     }
 }

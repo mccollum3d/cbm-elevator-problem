@@ -1,7 +1,6 @@
 package classes;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.Random;
 
 public class Simulation {
@@ -10,17 +9,17 @@ public class Simulation {
      * Simulation parameters
      * assumes user enters only valid values
      */
-    public int numberOfElevators = 2;   //Valid values: 1-26
-    public int numberOfFloors = 10;     //Valid values: 1-n
+    public int numberOfElevators = 15;   //Valid values: 1-26
+    public int numberOfFloors = 150;     //Valid values: 1-n
     public boolean distributeElevatorsToRandomFloorsAtStart = true;    //Valid values: true/false
 
-    public int simulationRunTime = 100; //Valid values: 1-n, simulates n minutes of elevator usage
+    public int simulationRunTime = 1000; //Valid values: 1-n, simulates n minutes of elevator usage
 
     public int startingPassengers = 8;     //Valid values: 1-n
     public boolean distributePassengersToRandomFloorsAtStart = true;
 
     //If you add too many new passengers/minute, the simulation may not complete in the run time selected.
-    public boolean enableNewArrivals = true;
+    public boolean enableNewArrivals = false;
     public int minimumMinutesToNewPassenger = 6;  //Valid values: 1-n
     public int maximumMinutesToNewPassenger = 12;  //Valid values: 1-n
     private int nextPassengerArrives = 10;          //when the first passenger arrives (i.e. 10 minutes then one more every 6-12 minutes)
@@ -109,12 +108,16 @@ public class Simulation {
             }
 
             // Check if all passengers delivered
-            if (isSimulationComplete(passengerList, elevatorList)) {
+            if (isSimulationComplete(passengerList, elevatorList, minutes)) {
                 break;
             }
-            ;
 
+            //Enable/Disable this to see ALL passenger and elevator actions
             detailedLogging(passengerList, elevatorList);
+
+            if (minutes == simulationRunTime) {
+                System.out.println("Simulation reached maximum run time of " + simulationRunTime + " without delivering all passengers. Install more elevators.");
+            }
 
         }
 
@@ -160,6 +163,7 @@ public class Simulation {
             //Passengers removed outside of inner for loopto avoid concurrent modification exception
             if (!passengersToRemove.isEmpty()) {
                 passengerList.removeAll(passengersToRemove);
+                elevator.setDoorOpen(true);
             }
         }
     }
@@ -180,6 +184,7 @@ public class Simulation {
                 if (passenger.getTargetFloor() == elevator.getCurrentFloor()) {
                     passengersToRemove.add(passenger);
                     elevator.setPassengersDelivered(elevator.getPassengersDelivered() + 1);
+                    elevator.setDoorOpen(true);
                 }
                 if (elevator.getRidingElevator().isEmpty()) {
                     elevator.setElevatorDirection(Elevator.direction.IDLE);
@@ -197,6 +202,13 @@ public class Simulation {
 
         if (!waitingPassengerList.isEmpty()) {
             for (Elevator elevator : elevatorList) {
+
+                //Simulates the door open/close time by causing an elevator to skip 1 movement when picking up or delivering a passenger
+                if (elevator.isDoorOpen()) {
+                    elevator.setDoorOpen(false);
+                    continue;
+                }
+
                 if (elevator.getRidingElevator().isEmpty()) {
                     elevator.setElevatorDirection(Elevator.direction.IDLE);
                 }
@@ -255,8 +267,11 @@ public class Simulation {
         }
     }
 
-    private boolean isSimulationComplete(ArrayList<Passenger> passengerList, ArrayList<Elevator> elevatorList) {
+    private boolean isSimulationComplete(ArrayList<Passenger> passengerList, ArrayList<Elevator> elevatorList, int minutesElapsed) {
         boolean allElevatorsEmpty = true;
+        int totalFloorsTraveled = 0;
+        int totalPassengersUndelivered = passengerList.size();
+
         for (Elevator elevator : elevatorList) {
             if (!elevator.getRidingElevator().isEmpty()) {
                 allElevatorsEmpty = false;
@@ -269,7 +284,25 @@ public class Simulation {
             for (Elevator elevator : elevatorList) {
                 System.out.println("Elevator [" + elevator.getElevatorName() + "] delivered " + elevator.getPassengersDelivered() +
                         " passengers and traversed " + elevator.getFloorsTraveled() + " floors.");
+                totalFloorsTraveled += elevator.getFloorsTraveled();
             }
+            //To simulate feedback given to a client on how to optimize their elevators in their building
+            System.out.println("Suggested Actions: ");
+            if (totalPassengersUndelivered > 10) {
+                int suggestElevators = totalPassengersUndelivered / 4;
+                System.out.println("Install more elevators to address the " + totalPassengersUndelivered + " undelivered passengers. Suggest " + suggestElevators + " new elevators");
+            }
+            else if (totalFloorsTraveled > 100) {
+                int average = totalFloorsTraveled / elevatorList.size();
+                System.out.println("Average elevator traveled " + average + " floors. Reduce wear and tear by installing more elevators");
+            }
+            else if (minutesElapsed < simulationRunTime / 2) {
+                System.out.println("Elevators delivered all passengers in less than half allotted time. You can install fewer elevators.");
+            }
+            else {
+                System.out.println("None. System met optimal transit speed for passengers");
+            }
+
             return true;
         }
         return false;
