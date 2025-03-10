@@ -25,9 +25,9 @@ public class Elevator {
     }
 
     /**
-     * User adjustable variable
+     * User adjustable variable (in the simulation class)
      */
-    public int capacity = 4;
+    public int capacity = 4; //default value
 
     public Elevator(int capacity, int elevatorName) {
         setCapacity(capacity);
