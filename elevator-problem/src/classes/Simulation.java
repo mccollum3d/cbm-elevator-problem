@@ -208,9 +208,13 @@ public class Simulation {
         }
     }
 
-
+    /**
+     * Sets elevators direction of travel based on current passenger destination, or nearest passenger if empty
+     * @param passengerList List of all passengers in the building awaiting an elevator
+     * @param elevatorList  List of all elevators in service
+     */
     private void assignElevatorInstructions
-            (ArrayList<Passenger> waitingPassengerList, ArrayList<Elevator> elevatorList) {
+            (ArrayList<Passenger> passengerList, ArrayList<Elevator> elevatorList) {
 
         for (Elevator elevator : elevatorList) {
 
@@ -248,9 +252,9 @@ public class Simulation {
 
             if (elevator.getElevatorDirection().equals(Elevator.direction.IDLE)) {
                 //No passengers on board, so continuing a direction of travel is not an option. Locate nearest waiting passenger.
-                if (!waitingPassengerList.isEmpty()) {
-                    Passenger nearestPassenger = waitingPassengerList.getFirst();
-                    for (Passenger passenger : waitingPassengerList) {
+                if (!passengerList.isEmpty()) {
+                    Passenger nearestPassenger = passengerList.getFirst();
+                    for (Passenger passenger : passengerList) {
                         if (Math.abs(elevator.getCurrentFloor() - passenger.getCurrentFloor()) < Math.abs(elevator.getCurrentFloor() - nearestPassenger.getCurrentFloor())) {
                             nearestPassenger = passenger;
                         }
