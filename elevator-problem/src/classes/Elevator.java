@@ -25,17 +25,18 @@ public class Elevator {
     }
 
     /**
-     * User adjustable variables
+     * User adjustable variable
      */
     public int capacity = 4;
-    public int floorsPerMinute = 1;
 
-    public Elevator(int elevatorName) {
+    public Elevator(int capacity, int elevatorName) {
+        setCapacity(capacity);
         setElevatorName(elevatorNames[elevatorName]);
         currentFloor = 1;
     }
 
-    public Elevator(int currentFloor, int elevatorName) {
+    public Elevator(int capacity, int currentFloor, int elevatorName) {
+        setCapacity(capacity);
         setElevatorName(elevatorNames[elevatorName]);
         setCurrentFloor(currentFloor);
     }
@@ -102,14 +103,6 @@ public class Elevator {
 
     public void setCapacity(int capacity) {
         this.capacity = capacity;
-    }
-
-    public int getFloorsPerMinute() {
-        return floorsPerMinute;
-    }
-
-    public void setFloorsPerMinute(int floorsPerMinute) {
-        this.floorsPerMinute = floorsPerMinute;
     }
 
     public boolean isDoorOpen() {

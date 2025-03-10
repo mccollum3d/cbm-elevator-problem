@@ -8,21 +8,28 @@ public class Simulation {
     /************************
      * Simulation parameters
      * assumes user enters only valid values
+     * Example Simulation Cases:
+     * Default values: 4, 25,true, 4, 150, 20, true, false, 6, 18, 10
+     * Going up: 10, 100, false, 8, 100, 80, false, false, 6, 18, 10
+     * Busy Buidling: 4, 20, true, 5, 100, 15, true, true, 3, 8, 12
      */
-    public int numberOfElevators = 15;   //Valid values: 1-26
-    public int numberOfFloors = 150;     //Valid values: 1-n
+    public int numberOfElevators = 4;   //Valid values: 1-26  --Reason is to label elevators A-Z.
+    public int numberOfFloors = 25;     //Valid values: 1-n
     public boolean distributeElevatorsToRandomFloorsAtStart = true;    //Valid values: true/false
+    public int elevatorCapacity = 4;    //Valid values: 1-n
 
-    public int simulationRunTime = 1000; //Valid values: 1-n, simulates n minutes of elevator usage
+    public int simulationRunTime = 150; //Valid values: 1-n, simulates n minutes of elevator usage
 
-    public int startingPassengers = 8;     //Valid values: 1-n
+    public int startingPassengers = 20;     //Valid values: 1-n
     public boolean distributePassengersToRandomFloorsAtStart = true;
 
     //If you add too many new passengers/minute, the simulation may not complete in the run time selected.
+    //It also often adds a new passenger at the last moment, so while this can be an interesting testing tool,
+    //it often results in undelivered passengers.
     public boolean enableNewArrivals = false;
-    public int minimumMinutesToNewPassenger = 6;  //Valid values: 1-n
+    public int minimumMinutesToNewPassenger = 8;  //Valid values: 1-n
     public int maximumMinutesToNewPassenger = 12;  //Valid values: 1-n
-    private int nextPassengerArrives = 10;          //when the first passenger arrives (i.e. 10 minutes then one more every 6-12 minutes)
+    private int nextPassengerArrives = 10;          //when the first passenger arrives (i.e. 10 minutes then one more every 6-18 minutes)
 
     /**
      * End of simulation parameters
@@ -31,6 +38,7 @@ public class Simulation {
     /**
      * Sets the starting locations of each passenger, and their destination.
      * Sets the starting locations of each elevator.
+     *
      * @param passengerList List of all passengers in the building awaiting an elevator
      * @param elevatorList  List of all elevators in service
      */
@@ -64,11 +72,11 @@ public class Simulation {
         //Initialize Elevators
         if (distributeElevatorsToRandomFloorsAtStart) {
             for (int e = 0; e < numberOfElevators; e++) {
-                elevatorList.add(new Elevator(rand.nextInt(numberOfFloors + 1), e));
+                elevatorList.add(new Elevator(elevatorCapacity, rand.nextInt(numberOfFloors + 1), e));
             }
         } else {
             for (int e = 0; e < numberOfElevators; e++) {
-                elevatorList.add(new Elevator(e));
+                elevatorList.add(new Elevator(elevatorCapacity, e));
             }
         }
 
@@ -79,6 +87,7 @@ public class Simulation {
 
     /**
      * Executes a simulation of elevator(s) picking up passengers and delivers them
+     *
      * @param passengerList List of all passengers in the building awaiting an elevator
      * @param elevatorList  List of all elevators in service
      */
@@ -101,8 +110,9 @@ public class Simulation {
             //new passengers arrive
             if (enableNewArrivals) {
                 Random rand = new Random();
-                if (minutes == nextPassengerArrives) {
-                    passengerList.add(new Passenger(rand.nextInt(1, numberOfFloors + 1), rand.nextInt(1, numberOfFloors + 1), passengerList.size()+1));
+                //spawns new passengers every x-y minutes, but stops near the end to give elevators a chance to finish all deliveries.
+                if (minutes == nextPassengerArrives && minutes < simulationRunTime - 20) {
+                    passengerList.add(new Passenger(rand.nextInt(1, numberOfFloors + 1), rand.nextInt(1, numberOfFloors + 1), passengerList.size() + 1));
                     nextPassengerArrives = rand.nextInt(minimumMinutesToNewPassenger, maximumMinutesToNewPassenger) + minutes;
                 }
             }
@@ -113,10 +123,12 @@ public class Simulation {
             }
 
             //Enable/Disable this to see ALL passenger and elevator actions
-            detailedLogging(passengerList, elevatorList);
+            // When logging, suggest elevators < 4 and Passengers < 12 for readability
+             detailedLogging(passengerList, elevatorList);
 
             if (minutes == simulationRunTime) {
                 System.out.println("Simulation reached maximum run time of " + simulationRunTime + " without delivering all passengers. Install more elevators.");
+                System.out.println("Enable logging to see all elevator and passenger actions by uncommenting // detailedLogging(passengerList, elevatorList)");
             }
 
         }
@@ -200,39 +212,43 @@ public class Simulation {
     private void assignElevatorInstructions
             (ArrayList<Passenger> waitingPassengerList, ArrayList<Elevator> elevatorList) {
 
-        if (!waitingPassengerList.isEmpty()) {
-            for (Elevator elevator : elevatorList) {
+        for (Elevator elevator : elevatorList) {
 
-                //Simulates the door open/close time by causing an elevator to skip 1 movement when picking up or delivering a passenger
-                if (elevator.isDoorOpen()) {
-                    elevator.setDoorOpen(false);
-                    continue;
-                }
+            //Simulates the door open/close time by causing an elevator to skip 1 movement when picking up or delivering a passenger
+            if (elevator.isDoorOpen()) {
+                elevator.setDoorOpen(false);
+                continue;
+            }
 
-                if (elevator.getRidingElevator().isEmpty()) {
-                    elevator.setElevatorDirection(Elevator.direction.IDLE);
-                }
+            //ensures the elevator turns around and does not keep it's "UP" designation on the top floor.
+            if (elevator.getCurrentFloor() >= numberOfFloors) {
+                elevator.setElevatorDirection(Elevator.direction.DOWN);
+            }
+            if (elevator.getCurrentFloor() <= 1) {
+                elevator.setElevatorDirection(Elevator.direction.UP);
+            }
 
-                if (elevator.getElevatorDirection().equals(Elevator.direction.UP)) {
-                    //Continue upward picking up/delivering until reaching highest requested floor
-                    for (Passenger passenger : elevator.getRidingElevator()) {
-                        if (passenger.getTargetFloor() > elevator.getTargetFloor()) {
-                            elevator.setTargetFloor(passenger.getTargetFloor());
-                        }
+            if (elevator.getElevatorDirection().equals(Elevator.direction.UP)) {
+                //Continue upward picking up/delivering until reaching highest requested floor
+                for (Passenger passenger : elevator.getRidingElevator()) {
+                    if (passenger.getTargetFloor() > elevator.getTargetFloor()) {
+                        elevator.setTargetFloor(passenger.getTargetFloor());
                     }
                 }
+            }
 
-                if (elevator.getElevatorDirection().equals(Elevator.direction.DOWN)) {
-                    //Continue downward picking up/delivering until reaching lowest requested floor
-                    for (Passenger passenger : elevator.getRidingElevator()) {
-                        if (passenger.getTargetFloor() < elevator.getTargetFloor()) {
-                            elevator.setTargetFloor(passenger.getTargetFloor());
-                        }
+            if (elevator.getElevatorDirection().equals(Elevator.direction.DOWN)) {
+                //Continue downward picking up/delivering until reaching lowest requested floor
+                for (Passenger passenger : elevator.getRidingElevator()) {
+                    if (passenger.getTargetFloor() < elevator.getTargetFloor()) {
+                        elevator.setTargetFloor(passenger.getTargetFloor());
                     }
                 }
+            }
 
-                if (elevator.getElevatorDirection().equals(Elevator.direction.IDLE)) {
-                    //No passengers on board, so continuing a direction of travel is not an option. Locate nearest waiting passenger.
+            if (elevator.getElevatorDirection().equals(Elevator.direction.IDLE)) {
+                //No passengers on board, so continuing a direction of travel is not an option. Locate nearest waiting passenger.
+                if (!waitingPassengerList.isEmpty()) {
                     Passenger nearestPassenger = waitingPassengerList.getFirst();
                     for (Passenger passenger : waitingPassengerList) {
                         if (Math.abs(elevator.getCurrentFloor() - passenger.getCurrentFloor()) < Math.abs(elevator.getCurrentFloor() - nearestPassenger.getCurrentFloor())) {
@@ -251,7 +267,14 @@ public class Simulation {
             }
         }
 
+
     }
+
+    /**
+     * Advances the elevators by one floor, using their current directional value which was set when picking up passengers.
+     * @param passengerList List of all passengers in the building awaiting an elevator
+     * @param elevatorList  List of all elevators in service
+     */
 
     private void advanceSimulationOneMinute(ArrayList<Passenger> passengerList, ArrayList<Elevator> elevatorList) {
         for (Elevator elevator : elevatorList) {
@@ -266,6 +289,14 @@ public class Simulation {
             }
         }
     }
+
+    /**
+     * Checks if the simulation is complete and all passengers delivered
+     * @param passengerList List of all passengers in the building awaiting an elevator
+     * @param elevatorList  List of all elevators in service
+     * @param minutesElapsed how long the simulation has been running, where one iteration = one minute
+     * @return
+     */
 
     private boolean isSimulationComplete(ArrayList<Passenger> passengerList, ArrayList<Elevator> elevatorList, int minutesElapsed) {
         boolean allElevatorsEmpty = true;
@@ -291,15 +322,12 @@ public class Simulation {
             if (totalPassengersUndelivered > 10) {
                 int suggestElevators = totalPassengersUndelivered / 4;
                 System.out.println("Install more elevators to address the " + totalPassengersUndelivered + " undelivered passengers. Suggest " + suggestElevators + " new elevators");
-            }
-            else if (totalFloorsTraveled > 100) {
+            } else if (totalFloorsTraveled > 100) {
                 int average = totalFloorsTraveled / elevatorList.size();
                 System.out.println("Average elevator traveled " + average + " floors. Reduce wear and tear by installing more elevators");
-            }
-            else if (minutesElapsed < simulationRunTime / 2) {
+            } else if (minutesElapsed < simulationRunTime / 2) {
                 System.out.println("Elevators delivered all passengers in less than half allotted time. You can install fewer elevators.");
-            }
-            else {
+            } else {
                 System.out.println("None. System met optimal transit speed for passengers");
             }
 
@@ -356,7 +384,7 @@ public class Simulation {
         if (distributeElevatorsToRandomFloorsAtStart) {
             System.out.print("Starting Elevator Locations: ");
             for (Elevator elev : elevatorList) {
-                System.out.print(elev.getCurrentFloor() + ", ");
+                System.out.print(elev.getCurrentFloor() + " ");
             }
         } else {
             System.out.println("All elevators starting on first floor. ");
