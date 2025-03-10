@@ -12,19 +12,29 @@ public class Simulation {
      */
     public int numberOfElevators = 2;   //Valid values: 1-26
     public int numberOfFloors = 10;     //Valid values: 1-n
-    public boolean distributeElevatorsToRandomFloorsAtStart = false;    //Valid values: true/false
+    public boolean distributeElevatorsToRandomFloorsAtStart = true;    //Valid values: true/false
 
     public int simulationRunTime = 100; //Valid values: 1-n, simulates n minutes of elevator usage
 
-    public int minPassengersPerMinute = 1;  //Valid values: 1-n
-    public int maxPassengersPerMinute = 6;  //Valid values: 1-n
-    public int startingPassengers = 12;     //Valid values: 1-n
-    public boolean distributePassengersToRandomFloorsAtStart = true;    //Valid values: true/false
+    public int startingPassengers = 8;     //Valid values: 1-n
+    public boolean distributePassengersToRandomFloorsAtStart = true;
+
+    //If you add too many new passengers/minute, the simulation may not complete in the run time selected.
+    public boolean enableNewArrivals = true;
+    public int minimumMinutesToNewPassenger = 6;  //Valid values: 1-n
+    public int maximumMinutesToNewPassenger = 12;  //Valid values: 1-n
+    private int nextPassengerArrives = 10;          //when the first passenger arrives (i.e. 10 minutes then one more every 6-12 minutes)
 
     /**
      * End of simulation parameters
      ***********************/
 
+    /**
+     * Sets the starting locations of each passenger, and their destination.
+     * Sets the starting locations of each elevator.
+     * @param passengerList List of all passengers in the building awaiting an elevator
+     * @param elevatorList  List of all elevators in service
+     */
     public void initializeSimulation(ArrayList<Passenger> passengerList, ArrayList<Elevator> elevatorList) {
         // creates the starting conditions of the simulation
         // random number between 1 (inclusive) and n (exclusive) therefore n+1 becomes boundary of rng.
@@ -33,21 +43,22 @@ public class Simulation {
         //Initialize Passengers
         if (distributePassengersToRandomFloorsAtStart) {
             for (int p = 0; p < startingPassengers; p++) {
-                int start = rand.nextInt(numberOfFloors);
-                int end = rand.nextInt(numberOfFloors)+1; //inclusive of 0, exclusive of highest floor, +1 fixes this.
+                //inclusive of 0, exclusive of highest floor, +1 fixes this so random floor = 1-n
+                int start = rand.nextInt(numberOfFloors) + 1;
+                int end = rand.nextInt(numberOfFloors) + 1;
                 while (start == end) {
-                    start = rand.nextInt(numberOfFloors);
-                    end = rand.nextInt(numberOfFloors)+1;
+                    start = rand.nextInt(numberOfFloors) + 1;
+                    end = rand.nextInt(numberOfFloors) + 1;
                 }
-                passengerList.add(new Passenger(start, end, p+1));
+                passengerList.add(new Passenger(start, end, p + 1));
             }
         } else {
             for (int p = 0; p < startingPassengers; p++) {
-                int end = rand.nextInt(numberOfFloors)+1;
+                int end = rand.nextInt(numberOfFloors) + 1;
                 while (end == 1) {
-                    end = rand.nextInt(numberOfFloors)+1;
+                    end = rand.nextInt(numberOfFloors) + 1;
                 }
-                passengerList.add(new Passenger(1, end, p+1));
+                passengerList.add(new Passenger(1, end, p + 1));
             }
         }
 
@@ -67,6 +78,11 @@ public class Simulation {
         runSimulation(passengerList, elevatorList);
     }
 
+    /**
+     * Executes a simulation of elevator(s) picking up passengers and delivers them
+     * @param passengerList List of all passengers in the building awaiting an elevator
+     * @param elevatorList  List of all elevators in service
+     */
     public void runSimulation(ArrayList<Passenger> passengerList, ArrayList<Elevator> elevatorList) {
         //Runs the simulation and returns the results
         for (int minutes = 0; minutes <= simulationRunTime; minutes++) {
@@ -83,10 +99,20 @@ public class Simulation {
             // Advance all elevators 1 floor
             advanceSimulationOneMinute(passengerList, elevatorList);
 
+            //new passengers arrive
+            if (enableNewArrivals) {
+                Random rand = new Random();
+                if (minutes == nextPassengerArrives) {
+                    passengerList.add(new Passenger(rand.nextInt(1, numberOfFloors + 1), rand.nextInt(1, numberOfFloors + 1), passengerList.size()+1));
+                    nextPassengerArrives = rand.nextInt(minimumMinutesToNewPassenger, maximumMinutesToNewPassenger) + minutes;
+                }
+            }
+
             // Check if all passengers delivered
             if (isSimulationComplete(passengerList, elevatorList)) {
                 break;
-            };
+            }
+            ;
 
             detailedLogging(passengerList, elevatorList);
 
@@ -100,8 +126,9 @@ public class Simulation {
 
     /**
      * Handles the loading of passengers after any passengers on board the elevator that wanted to get off have done so.
+     *
      * @param passengerList List of all passengers in the building awaiting an elevator
-     * @param elevatorList List of all elevators in service
+     * @param elevatorList  List of all elevators in service
      */
 
     private void pickUpPassengers(ArrayList<Passenger> passengerList, ArrayList<Elevator> elevatorList) {
@@ -109,12 +136,25 @@ public class Simulation {
 
 
         for (Elevator elevator : elevatorList) {
+            if (elevator.getRidingElevator().size() == elevator.getCapacity()) {
+                continue;
+            }
             for (Passenger passenger : passengerList) {
                 //Passengers picked up, if elevator has capacity
-                if (passenger.getCurrentFloor() == elevator.getCurrentFloor() && elevator.getRidingElevator().size() <= elevator.getCapacity()) {
-                    elevator.getRidingElevator().add(passenger);
-                    elevator.setTargetFloor(passenger.getTargetFloor());
-                    passengersToRemove.add(passenger);
+                if (passenger.getCurrentFloor() == elevator.getCurrentFloor() && elevator.getRidingElevator().size() < elevator.getCapacity()) {
+                    //Determine when the doors open if the passenger steps on. They step on if the elevator is going in the direction they want to go, or it is empty
+                    if ((elevator.getElevatorDirection().equals(Elevator.direction.UP) && passenger.getTargetFloor() > elevator.getCurrentFloor()) ||
+                            (elevator.getElevatorDirection().equals(Elevator.direction.DOWN) && passenger.getTargetFloor() < elevator.getCurrentFloor()) ||
+                            (elevator.getRidingElevator().isEmpty())) {
+                        elevator.getRidingElevator().add(passenger);
+                        elevator.setTargetFloor(passenger.getTargetFloor());
+                        passengersToRemove.add(passenger);
+                        if (elevator.getTargetFloor() < elevator.getCurrentFloor()) {
+                            elevator.setElevatorDirection(Elevator.direction.DOWN);
+                        } else {
+                            elevator.setElevatorDirection(Elevator.direction.UP);
+                        }
+                    }
                 }
             }
             //Passengers removed outside of inner for loopto avoid concurrent modification exception
@@ -126,11 +166,15 @@ public class Simulation {
 
     /**
      * Unload passengers who have arrived on their target floor.
+     *
      * @param elevatorList List of all elevators in service
      */
 
     private void deliverPassengers(ArrayList<Elevator> elevatorList) {
         for (Elevator elevator : elevatorList) {
+            if (elevator.getRidingElevator().isEmpty()) {
+                continue;
+            }
             ArrayList<Passenger> passengersToRemove = new ArrayList<>();
             for (Passenger passenger : elevator.getRidingElevator()) {
                 if (passenger.getTargetFloor() == elevator.getCurrentFloor()) {
@@ -138,7 +182,7 @@ public class Simulation {
                     elevator.setPassengersDelivered(elevator.getPassengersDelivered() + 1);
                 }
                 if (elevator.getRidingElevator().isEmpty()) {
-                    elevator.setIdle(true);
+                    elevator.setElevatorDirection(Elevator.direction.IDLE);
                 }
             }
             if (!passengersToRemove.isEmpty()) {
@@ -149,97 +193,64 @@ public class Simulation {
 
 
     private void assignElevatorInstructions
-            (ArrayList<Passenger> passengerList, ArrayList<Elevator> elevatorList) {
+            (ArrayList<Passenger> waitingPassengerList, ArrayList<Elevator> elevatorList) {
 
-        for (Elevator elevator : elevatorList) {
-            Passenger nearestPassenger = null;
+        if (!waitingPassengerList.isEmpty()) {
+            for (Elevator elevator : elevatorList) {
+                if (elevator.getRidingElevator().isEmpty()) {
+                    elevator.setElevatorDirection(Elevator.direction.IDLE);
+                }
 
-            //Elevator has no passengers
-            if (elevator.getRidingElevator().isEmpty()) {
-                elevator.setAscending(false);
-                elevator.setDescending(false);
-                elevator.setIdle(true);
-            }
-
-            //Edge case: elevator has passengers, but there are no more waiting in the building to determine best target floor.
-            //  To keep the elevator moving, just pick a floor of any current rider and resume movement.
-            if (passengerList.isEmpty() && !elevator.getRidingElevator().isEmpty()) {
-                elevator.setTargetFloor(elevator.getRidingElevator().getFirst().getTargetFloor());
-            }
-
-            if (elevator.isIdle()) {
-                //Elevator not in use, pick up nearest passenger above or below it.
-                for (Passenger passenger : passengerList) {
-                    if (nearestPassenger==null) {
-                        nearestPassenger = passenger;
-                        continue;
-                    }
-                    if (Math.abs(elevator.getCurrentFloor() - passenger.getCurrentFloor()) < Math.abs(elevator.getCurrentFloor() - nearestPassenger.getCurrentFloor())) {
-                        nearestPassenger = passenger;
+                if (elevator.getElevatorDirection().equals(Elevator.direction.UP)) {
+                    //Continue upward picking up/delivering until reaching highest requested floor
+                    for (Passenger passenger : elevator.getRidingElevator()) {
+                        if (passenger.getTargetFloor() > elevator.getTargetFloor()) {
+                            elevator.setTargetFloor(passenger.getTargetFloor());
+                        }
                     }
                 }
-            }
-            else if (elevator.isAscending()) {
-                //Elevator ascending, pick up nearest passenger along current path up.
-                for (Passenger passenger : passengerList) {
-                    if (nearestPassenger == null) {
-                        nearestPassenger = passenger;
-                        continue;
-                    }
-                    if ((passenger.getCurrentFloor() - elevator.getCurrentFloor() < (nearestPassenger.getCurrentFloor() - elevator.getCurrentFloor()))) {
-                        nearestPassenger = passenger;
-                    }
-                }
-            }
-            else if (elevator.isDescending()) {
-                //Elevator ascending, pick up nearest passenger along current path up.
-                for (Passenger passenger : passengerList) {
-                    if (nearestPassenger == null) {
-                        nearestPassenger = passenger;
-                        continue;
-                    }
-                    if ((elevator.getCurrentFloor() - passenger.getCurrentFloor()) < (elevator.getCurrentFloor() - nearestPassenger.getCurrentFloor())) {
-                        nearestPassenger = passenger;
-                    }
-                }
-            }
 
-            //The Elevator has located its next passenger to pick up based on if it was idle, ascending, or descending
-            if (nearestPassenger==null) {
-                //No more passengers to pick up in building, let elevator continue any current instructions.
-            } else {
-                //Give elevator new instruction to proceed to pick up nearest passenger.
-                elevator.setTargetFloor(nearestPassenger.getCurrentFloor());
-                //Ensure direction of travel is updated
-                if (elevator.getTargetFloor() > elevator.getCurrentFloor()) {
-                    elevator.setAscending(true);
-                    elevator.setDescending(false);
-                    elevator.setIdle(false);
-                } else if (elevator.getTargetFloor() < elevator.getCurrentFloor()) {
-                    elevator.setAscending(false);
-                    elevator.setDescending(true);
-                    elevator.setIdle(false);
-                } else {
-                    elevator.setAscending(false);
-                    elevator.setDescending(false);
-                    elevator.setIdle(true);
+                if (elevator.getElevatorDirection().equals(Elevator.direction.DOWN)) {
+                    //Continue downward picking up/delivering until reaching lowest requested floor
+                    for (Passenger passenger : elevator.getRidingElevator()) {
+                        if (passenger.getTargetFloor() < elevator.getTargetFloor()) {
+                            elevator.setTargetFloor(passenger.getTargetFloor());
+                        }
+                    }
+                }
+
+                if (elevator.getElevatorDirection().equals(Elevator.direction.IDLE)) {
+                    //No passengers on board, so continuing a direction of travel is not an option. Locate nearest waiting passenger.
+                    Passenger nearestPassenger = waitingPassengerList.getFirst();
+                    for (Passenger passenger : waitingPassengerList) {
+                        if (Math.abs(elevator.getCurrentFloor() - passenger.getCurrentFloor()) < Math.abs(elevator.getCurrentFloor() - nearestPassenger.getCurrentFloor())) {
+                            nearestPassenger = passenger;
+                        }
+                    }
+                    //Set new direction of travel to pick up nearest passenger & deliver them
+                    if (nearestPassenger.getTargetFloor() > elevator.getCurrentFloor()) {
+                        elevator.setElevatorDirection(Elevator.direction.UP);
+                        elevator.setTargetFloor(nearestPassenger.getCurrentFloor());
+                    } else if (nearestPassenger.getTargetFloor() < elevator.getCurrentFloor()) {
+                        elevator.setElevatorDirection(Elevator.direction.DOWN);
+                        elevator.setTargetFloor(nearestPassenger.getCurrentFloor());
+                    }
                 }
             }
         }
+
     }
 
-    private void advanceSimulationOneMinute (ArrayList<Passenger> passengerList, ArrayList<Elevator> elevatorList) {
+    private void advanceSimulationOneMinute(ArrayList<Passenger> passengerList, ArrayList<Elevator> elevatorList) {
         for (Elevator elevator : elevatorList) {
-            if (elevator.getCurrentFloor() < elevator.getTargetFloor()) {
+            if (elevator.getElevatorDirection().equals(Elevator.direction.UP)) {
                 elevator.setCurrentFloor(elevator.getCurrentFloor() + 1);
-                elevator.setIdle(false);
                 elevator.setFloorsTraveled(elevator.getFloorsTraveled() + 1);
-            } else if (elevator.getCurrentFloor() > elevator.getTargetFloor()) {
+            } else if (elevator.getElevatorDirection().equals(Elevator.direction.DOWN)) {
                 elevator.setCurrentFloor(elevator.getCurrentFloor() - 1);
-                elevator.setIdle(false);
                 elevator.setFloorsTraveled(elevator.getFloorsTraveled() + 1);
             } else {
-                elevator.setIdle(true);
+                elevator.setElevatorDirection(Elevator.direction.IDLE);
             }
         }
     }
@@ -267,20 +278,21 @@ public class Simulation {
     /**
      * Detailed Logging Method: Used if the user wants to see step by step, every instruction's result on the current
      * floor of every elevator and location of every passenger
+     *
      * @param passengerList List of all passengers in the building awaiting an elevator
-     * @param elevatorList List of all elevators in service
+     * @param elevatorList  List of all elevators in service
      */
     private void detailedLogging(ArrayList<Passenger> passengerList, ArrayList<Elevator> elevatorList) {
         System.out.println();
         System.out.println("* Waiting Passenger List:");
-        for(Passenger passenger : passengerList) {
+        for (Passenger passenger : passengerList) {
             System.out.println("Passenger #" + passenger.getPassengerIdentifier() + " -> On floor " + passenger.getCurrentFloor() + " Waiting to go to floor: " + passenger.getTargetFloor());
         }
 
         System.out.println();
         System.out.println("*** Elevators");
         int elevatorCount = 1;
-        for(Elevator elevator : elevatorList) {
+        for (Elevator elevator : elevatorList) {
             System.out.println("Elevator [" + elevator.getElevatorName() + "] -> On floor " + elevator.getCurrentFloor() + " Traveling to floor: " + elevator.getTargetFloor());
             for (Passenger passenger : elevator.getRidingElevator()) {
                 System.out.println("--Passenger #" + passenger.getPassengerIdentifier() + " -> On elevator [" + elevator.getElevatorName() + "] Traveling to floor: " + passenger.getTargetFloor());
@@ -292,8 +304,9 @@ public class Simulation {
     /**
      * Always printed at start of simulation to show where the passengers and elevators started,
      * mostly useful if using random starting floor assignments
+     *
      * @param passengerList List of all passengers in the building awaiting an elevator
-     * @param elevatorList List of all elevators in service
+     * @param elevatorList  List of all elevators in service
      */
     private void printStartingLocations(ArrayList<Passenger> passengerList, ArrayList<Elevator> elevatorList) {
         //Debugging Tool:

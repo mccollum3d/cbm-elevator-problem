@@ -10,15 +10,18 @@ public class Elevator {
     private static final String[] elevatorNames = {"A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"};
 
     private String elevatorName;
-    private boolean ascending;
-    private boolean descending;
-    private boolean doorOpen;
-    private boolean idle;
     private int currentFloor;
     private int targetFloor;
     private int passengersDelivered = 0;
     private int floorsTraveled = 0;
     private ArrayList<Passenger> ridingElevator = new ArrayList<>();
+    private direction elevatorDirection = direction.IDLE;
+
+    public enum direction {
+        UP,
+        DOWN,
+        IDLE
+    }
 
     /**
      * User adjustable variables
@@ -28,22 +31,13 @@ public class Elevator {
 
     public Elevator(int elevatorName) {
         setElevatorName(elevatorNames[elevatorName]);
-        ascending = false;
-        descending = false;
-        doorOpen = false;
-        idle = true;
         currentFloor = 1;
     }
 
     public Elevator(int currentFloor, int elevatorName) {
         setElevatorName(elevatorNames[elevatorName]);
-        ascending = false;
-        descending = false;
-        doorOpen = false;
-        idle = true;
         setCurrentFloor(currentFloor);
     }
-
 
     public String getElevatorName() {
         return elevatorName;
@@ -51,38 +45,6 @@ public class Elevator {
 
     public void setElevatorName(String elevatorName) {
         this.elevatorName = elevatorName;
-    }
-
-    public boolean isAscending() {
-        return ascending;
-    }
-
-    public void setAscending(boolean ascending) {
-        this.ascending = ascending;
-    }
-
-    public boolean isDescending() {
-        return descending;
-    }
-
-    public void setDescending(boolean descending) {
-        this.descending = descending;
-    }
-
-    public boolean isDoorOpen() {
-        return doorOpen;
-    }
-
-    public void setDoorOpen(boolean doorOpen) {
-        this.doorOpen = doorOpen;
-    }
-
-    public boolean isIdle() {
-        return idle;
-    }
-
-    public void setIdle(boolean idle) {
-        this.idle = idle;
     }
 
     public int getCurrentFloor() {
@@ -123,6 +85,14 @@ public class Elevator {
 
     public void setRidingElevator(ArrayList<Passenger> ridingElevator) {
         this.ridingElevator = ridingElevator;
+    }
+
+    public direction getElevatorDirection() {
+        return elevatorDirection;
+    }
+
+    public void setElevatorDirection(direction elevatorDirection) {
+        this.elevatorDirection = elevatorDirection;
     }
 
     public int getCapacity() {
